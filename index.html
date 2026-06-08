@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><MAP LAB> AI 챗봇 & 스마트 질문 노트</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Jua&display=swap');
+        
+        :root {
+            --primary: #5DADE2;   
+            --primary-hover: #3498DB;
+            --bg: #FFF5F5;        
+            --panel: #FFFFFF;
+            --text: #4A4A4A;      
+            --border: #E8E8E8;
+            --radius-box: 24px;   
+            --radius-btn: 16px;
+        }
+
+        * { box-sizing: border-box; }
+        
+        body {
+            font-family: 'Jua', sans-serif;
+            margin: 0; padding: 0; background: var(--bg);
+            color: var(--text); height: 100vh; overflow: hidden;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        /* --- 공통 유틸 --- */
+        .hidden { display: none !important; }
+        .screen { width: 100%; height: 100%; max-width: 1200px; display: flex; flex-direction: column; position: relative; background: var(--bg); }
+        
+        .btn {
+            font-family: 'Jua', sans-serif; padding: 12px 24px; border: none; border-radius: var(--radius-btn);
+            cursor: pointer; font-size: 1.2rem; transition: 0.2s;
+        }
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 10px rgba(93, 173, 226, 0.3); }
+        .btn-primary:hover { background: var(--primary-hover); transform: translateY(-2px); }
+        .btn-outline { background: white; border: 2px solid var(--border); color: var(--text); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-disabled { background: #BDC3C7; cursor: not-allowed; box-shadow: none; }
+
+        /* --- 1. 로그인 화면 --- */
+        #login-screen { justify-content: center; align-items: center; }
+        .login-box {
+            background: var(--panel); padding: 40px; border-radius: var(--radius-box);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08); width: 450px; text-align: left;
+        }
+        .login-box h1 { color: var(--primary); font-size: 2rem; margin-bottom: 30px; text-align: center; }
+        
+        .form-label { display: block; margin-bottom: 8px; color: #7F8C8D; font-size: 1.1rem; }
+        .input-group { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
+        
+        .input-control {
+            width: 100%; padding: 12px; border-radius: 12px; border: 2px solid var(--border);
+            font-family: 'Jua', sans-serif; font-size: 1.1rem; outline: none; transition: 0.2s;
+        }
+        .input-control:focus { border-color: var(--primary); }
+        .static-text { font-size: 1.1rem; color: #34495E; white-space: nowrap; background: #F2F3F4; padding: 12px; border-radius: 12px; border: 2px solid var(--border); }
+
+        /* --- 2. 로비 화면 --- */
+        #lobby-screen { justify-content: center; align-items: center; gap: 30px; }
+        .lobby-title { font-size: 2.5rem; color: var(--primary); margin-bottom: 20px; text-align: center; }
+        .lobby-btns { display: flex; gap: 20px; }
+        .lobby-btn {
+            width: 250px; height: 250px; border-radius: var(--radius-box); background: var(--panel);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.06); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; cursor: pointer; transition: 0.3s; border: 3px solid transparent;
+        }
+        .lobby-btn:hover { transform: translateY(-10px); border-color: var(--primary); box-shadow: 0 15px 30px rgba(93, 173, 226, 0.2); }
+        .lobby-icon { font-size: 5rem; margin-bottom: 15px; }
+        .lobby-text { font-family: 'Jua', sans-serif; font-size: 1.5rem; color: var(--text); }
+
+        /* --- 3. 챗봇 화면 --- */
+        #chat-screen { background: #B2C7D9; padding: 0; }
+        .chat-header {
+            background: rgba(255,255,255,0.9); padding: 15px 20px; display: flex; align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05); z-index: 10;
+        }
+        .chat-header h2 { margin: 0; flex: 1; text-align: center; font-size: 1.4rem; color: #2C3E50; }
+        .chat-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        
+        .msg-wrap { display: flex; max-width: 80%; align-items: flex-end; position: relative; }
+        .msg-wrap.bot { align-self: flex-start; }
+        .msg-wrap.user { align-self: flex-end; flex-direction: row-reverse; }
+        
+        .bot-profile { width: 40px; height: 40px; background: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; margin-right: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); flex-shrink: 0;}
+        
+        .msg-bubble {
+            padding: 12px 18px; border-radius: 20px; font-size: 1.1rem; line-height: 1.4; word-break: break-all;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); font-family: sans-serif;
+        }
+        .msg-wrap.bot .msg-bubble { background: #FFFFFF; border-top-left-radius: 0; }
+        .msg-wrap.user .msg-bubble { background: #FEE500; border-top-right-radius: 0; }
+        .msg-wrap.loading .msg-bubble { background: #E8F8F5; color: #16A085; font-style: italic; }
+        
+        .btn-copy {
+            background: #E8F8F5; border: 1px solid #1ABC9C; color: #16A085; font-size: 0.8rem;
+            padding: 4px 8px; border-radius: 8px; cursor: pointer; margin-left: 10px; font-family: 'Jua', sans-serif;
+        }
+
+        .chat-input-area { background: white; padding: 15px; display: flex; gap: 10px; }
+        #chat-input { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid var(--border); font-size: 1.1rem; outline: none; font-family: sans-serif; }
+        #chat-send { background: var(--primary); color: white; border: none; padding: 0 20px; border-radius: 20px; cursor: pointer; font-family: 'Jua', sans-serif; font-size: 1.1rem; }
+        #chat-send:disabled { background: #BDC3C7; cursor: not-allowed; }
+
+        /* --- 4. 질문 노트 화면 --- */
+        #notebook-screen { padding: 15px; gap: 10px; }
+        .nb-header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 10px 20px; border-radius: var(--radius-box); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .nb-info { font-size: 1.2rem; color: var(--primary); }
+        .nb-topic { flex: 1; margin: 0 20px; }
+        .nb-topic input { width: 100%; padding: 8px; font-size: 1.2rem; border: none; border-bottom: 2px dashed var(--border); outline: none; font-family: 'Jua', sans-serif; background: transparent; }
+        
+        .nb-toolbar { display: flex; gap: 10px; background: white; padding: 10px 20px; border-radius: var(--radius-box); box-shadow: 0 4px 10px rgba(0,0,0,0.05); align-items: center; flex-wrap: wrap;}
+        .tool-group { display: flex; align-items: center; gap: 5px; border-right: 2px solid var(--border); padding-right: 15px; }
+        .tool-btn { background: #F0F3F4; border: none; padding: 8px 12px; border-radius: 12px; cursor: pointer; font-family: 'Jua', sans-serif; transition: 0.2s; font-size: 1rem;}
+        .tool-btn.active { background: #D1F2EB; color: #117A65; box-shadow: inset 0 2px 5px rgba(0,0,0,0.1); }
+        .tool-btn-action { background: #FEF9E7; border: 1px solid #F1C40F; color: #D4AC0D; }
+        
+        .sticker-pack { display: flex; gap: 5px; }
+        .sticker-drag { font-size: 1.5rem; cursor: grab; padding: 5px; background: #FDFDFD; border: 1px solid var(--border); border-radius: 8px; transition: 0.2s;}
+        .sticker-drag:hover { transform: scale(1.1); border-color: var(--primary); }
+
+        .nb-workspace { flex: 1; position: relative; background: white; border-radius: var(--radius-box); box-shadow: 0 8px 24px rgba(0,0,0,0.06); overflow: hidden; display: flex; }
+        
+        #notebook-canvas-container { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; background: #FAFAFA; background-image: radial-gradient(#D5D8DC 1px, transparent 1px); background-size: 20px 20px; }
+        
+        #draw-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
+        #draw-layer.active { pointer-events: auto; cursor: crosshair; }
+        
+        .layout-container { width: 100%; height: 100%; padding: 20px; z-index: 2; position: relative; gap: 20px; }
+        
+        .text-box { width: 100%; height: 100%; border: none; background: transparent; resize: none; font-family: 'Jua', sans-serif; font-size: 1.2rem; line-height: 1.6; outline: none; padding: 10px; border: 2px dashed #E5E7E9; border-radius: 12px; }
+        .text-box:focus { background: rgba(255,255,255,0.8); border-color: var(--primary); }
+
+        .layout-1 { display: flex; flex-direction: column; }
+        .layout-1 .top-area { flex: 1; border: 2px dashed var(--border); border-radius: 12px; background: rgba(255,255,255,0.5); display: flex; justify-content: center; align-items: center; color: #95A5A6;}
+        .layout-1 .bottom-area { flex: 1; }
+        
+        .layout-2 { display: flex; flex-direction: row; }
+        .layout-2 .left-area { flex: 1; }
+        .layout-2 .right-area { flex: 1; border: 2px dashed var(--border); border-radius: 12px; background: rgba(255,255,255,0.5); }
+        
+        .layout-3 { display: grid; grid-template-columns: 30% 1fr; grid-template-rows: 1fr 120px; }
+        .layout-3 .left-cue { grid-column: 1; grid-row: 1; border-right: 2px solid var(--border); padding-right: 15px; }
+        .layout-3 .right-note { grid-column: 2; grid-row: 1; padding-left: 15px;}
+        .layout-3 .bottom-summary { grid-column: 1 / span 2; grid-row: 2; border-top: 2px solid var(--border); padding-top: 15px; }
+
+        .placed-sticker { position: absolute; font-size: 2rem; z-index: 10; cursor: grab; user-select: none; }
+        .placed-sticker:active { cursor: grabbing; }
+
+        /* --- 레이아웃 선택 모달 --- */
+        #layout-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; display: flex; justify-content: center; align-items: center; }
+        .modal-box { background: white; padding: 30px; border-radius: var(--radius-box); max-width: 600px; text-align: center; }
+        .modal-box h2 { color: var(--primary); margin-top: 0; }
+        .layout-options { display: flex; gap: 15px; margin-top: 20px; }
+        .layout-card { border: 2px solid var(--border); border-radius: 12px; padding: 15px; cursor: pointer; transition: 0.2s; flex: 1; }
+        .layout-card:hover { border-color: var(--primary); background: #E8F8F5; transform: translateY(-5px); }
+        .layout-preview { width: 100%; height: 100px; background: #F0F3F4; margin-bottom: 10px; border-radius: 8px; display: flex; gap: 5px; padding: 5px; }
+        
+        .p-1 { flex-direction: column; } .p-1 div { flex: 1; background: white; border-radius: 4px; border: 1px dashed #BDC3C7;}
+        .p-2 { flex-direction: row; } .p-2 div { flex: 1; background: white; border-radius: 4px; border: 1px dashed #BDC3C7;}
+        .p-3 { display: grid; grid-template-columns: 1fr 2fr; grid-template-rows: 2fr 1fr; } .p-3 div { background: white; border-radius: 4px; border: 1px dashed #BDC3C7; } .p-3 .b { grid-column: 1 / span 2; }
+
+    </style>
+</head>
+<body>
+
+    <div id="login-screen" class="screen">
+        <div class="login-box">
+            <h1>🗺️ MAP LAB 교실 입장</h1>
+            
+            <label class="form-label">소속 학교</label>
+            <div class="input-group">
+                <input type="text" id="inp-school" class="input-control" placeholder="학교명을 입력하세요">
+                <div class="static-text">초등학교</div>
+            </div>
+
+            <div class="input-group">
+                <div style="flex: 1;">
+                    <label class="form-label">학년</label>
+                    <select id="inp-grade" class="input-control">
+                        <option value="3">3학년</option><option value="4">4학년</option>
+                        <option value="5">5학년</option><option value="6" selected>6학년</option>
+                    </select>
+                </div>
+                <div style="flex: 1;">
+                    <label class="form-label">반</label>
+                    <input type="number" id="inp-class" class="input-control" min="1" max="20" placeholder="반">
+                </div>
+                <div style="flex: 1;">
+                    <label class="form-label">번호</label>
+                    <input type="number" id="inp-num" class="input-control" min="1" max="40" placeholder="번호">
+                </div>
+            </div>
+
+            <label class="form-label">내 이름</label>
+            <div class="input-group" style="margin-bottom: 30px;">
+                <input type="text" id="inp-name" class="input-control" placeholder="이름을 입력하세요">
+            </div>
+
+            <button class="btn btn-primary" style="width: 100%; font-size: 1.4rem; padding: 15px;" onclick="doLogin()">입장하기</button>
+        </div>
+    </div>
+
+    <div id="lobby-screen" class="screen hidden">
+        <h1 class="lobby-title" id="lobby-greeting">환영합니다! 무엇을 할까요?</h1>
+        <div class="lobby-btns">
+            <div class="lobby-btn" onclick="openChat()">
+                <div class="lobby-icon">🤖</div>
+                <div class="lobby-text">맵봇에게 물어보기</div>
+            </div>
+            <div class="lobby-btn" onclick="openNotebook()">
+                <div class="lobby-icon">📓</div>
+                <div class="lobby-text">질문 노트 정리하기</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="chat-screen" class="screen hidden">
+        <div class="chat-header">
+            <button class="btn btn-outline" style="padding: 6px 15px; font-size: 1rem;" onclick="goLobby()">◀ 나가기</button>
+            <h2>🤖 맵봇 (Map-Bot)</h2>
+            <div style="width: 80px;"></div>
+        </div>
+        <div class="chat-messages" id="chat-box"></div>
+        <div class="chat-input-area">
+            <input type="text" id="chat-input" placeholder="사회 공부 중 궁금한 것을 물어보세요!" onkeypress="if(event.key==='Enter') sendChat()">
+            <button id="chat-send" onclick="sendChat()">전송</button>
+        </div>
+    </div>
+
+    <div id="layout-modal" class="hidden">
+        <div class="modal-box">
+            <h2>어떤 질문 노트를 사용할까요?</h2>
+            <div class="layout-options">
+                <div class="layout-card" onclick="selectLayout(1)">
+                    <div class="layout-preview p-1"><div></div><div></div></div>
+                    <h3>상하 분할형</h3>
+                    <p style="font-size:0.9rem; color:#7F8C8D; font-family:sans-serif;">위에는 그림,<br>아래는 글쓰기</p>
+                </div>
+                <div class="layout-card" onclick="selectLayout(2)">
+                    <div class="layout-preview p-2"><div></div><div></div></div>
+                    <h3>좌우 분할형</h3>
+                    <p style="font-size:0.9rem; color:#7F8C8D; font-family:sans-serif;">글과 그림을<br>나란히 배치</p>
+                </div>
+                <div class="layout-card" onclick="selectLayout(3)">
+                    <div class="layout-preview p-3"><div></div><div></div><div class="b"></div></div>
+                    <h3>코넬 노트형</h3>
+                    <p style="font-size:0.9rem; color:#7F8C8D; font-family:sans-serif;">체계적인 핵심<br>요약 구조</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="notebook-screen" class="screen hidden">
+        <div class="nb-header">
+            <button class="btn btn-outline" style="padding: 6px 15px; font-size: 1rem;" onclick="goLobby()">◀ 로비로</button>
+            <div class="nb-topic">
+                <input type="text" id="nb-topic-input" placeholder="오늘의 배움 주제를 적어주세요.">
+            </div>
+            <div class="nb-info" id="nb-user-info"></div>
+        </div>
+        
+        <div class="nb-toolbar">
+            <div class="tool-group">
+                <button class="tool-btn" id="tool-text" onclick="setNotebookMode('text')">⌨️ 글쓰기</button>
+                <button class="tool-btn" id="tool-draw" onclick="setNotebookMode('draw')">🖍️ 펜그리기</button>
+                <button class="tool-btn" id="tool-erase" onclick="setNotebookMode('erase')">🧽 지우개</button>
+                <input type="color" id="draw-color" value="#E74C3C" onchange="if(curNbMode==='draw') setNotebookMode('draw')">
+                <input type="range" id="draw-size" min="2" max="20" value="5" style="width: 80px;">
+                <button class="tool-btn" onclick="clearCanvas()" style="color: #E74C3C;">🗑️ 그림 지우기</button>
+            </div>
+            <div class="tool-group">
+                <button class="tool-btn tool-btn-action" onclick="importChatHistory()">💬 대화 불러오기</button>
+                <button class="tool-btn" onclick="openLayoutModal()">📑 양식 변경</button>
+            </div>
+            <button class="btn btn-primary" style="margin-left: auto; padding: 8px 20px; font-size: 1.1rem;" onclick="saveNotebook()">📸 완성! 출력하기</button>
+        </div>
+
+        <div class="nb-workspace" id="notebook-workspace">
+            <div id="notebook-canvas-container" ondrop="dropSticker(event)" ondragover="allowDrop(event)">
+                <canvas id="draw-layer"></canvas>
+                <div id="layout-wrapper" class="layout-container layout-1"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let userInfo = {};
+        let chatHistory = [];
+        let curNbMode = 'text';
+
+        // --- 로그인 및 네비게이션 ---
+        function doLogin() {
+            const school = document.getElementById('inp-school').value.trim();
+            const grade = document.getElementById('inp-grade').value;
+            const cls = document.getElementById('inp-class').value;
+            const num = document.getElementById('inp-num').value;
+            const name = document.getElementById('inp-name').value.trim();
+
+            if(!school || !cls || !num || !name) { alert("빈칸을 모두 채워주세요!"); return; }
+
+            userInfo = { school, grade, cls, num, name };
+            sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
+
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('lobby-screen').classList.remove('hidden');
+            document.getElementById('lobby-greeting').innerText = `환영합니다! ${name} 학생, 무엇을 할까요?`;
+        }
+
+        function goLobby() {
+            document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+            document.getElementById('lobby-screen').classList.remove('hidden');
+        }
+
+        // --- 챗봇 로직 ---
+        function openChat() {
+            document.getElementById('lobby-screen').classList.add('hidden');
+            document.getElementById('chat-screen').classList.remove('hidden');
+            
+            if(chatHistory.length === 0) {
+                appendBotMsg(`안녕? ${userInfo.name}야. 만나서 반가워! 🤖<br>나는 너의 사회 탐험을 도울 <b>맵봇(Map-Bot)</b>이야.<br>사회 학습 중 어떤 것이 궁금해서 날 찾아왔니?`);
+            }
+        }
+
+        function appendUserMsg(txt) {
+            chatHistory.push({ role: 'user', text: txt });
+            const box = document.getElementById('chat-box');
+            box.innerHTML += `<div class="msg-wrap user"><div class="msg-bubble">${txt}</div></div>`;
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function appendBotMsg(txt, isTemp = false) {
+            if(!isTemp) chatHistory.push({ role: 'bot', text: txt });
+            const box = document.getElementById('chat-box');
+            const cleanTxt = txt.replace(/\n/g, '<br>');
+            const idAttr = isTemp ? 'id="loading-msg"' : '';
+            const wrapClass = isTemp ? 'msg-wrap bot loading' : 'msg-wrap bot';
+            
+            box.innerHTML += `
+                <div class="${wrapClass}" ${idAttr}>
+                    <div class="bot-profile">🤖</div>
+                    <div class="msg-bubble">${cleanTxt}
+                        ${!isTemp ? '<button class="btn-copy" onclick="copyText(this)">복사</button>' : ''}
+                    </div>
+                </div>`;
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function copyText(btn) {
+            const text = btn.parentElement.innerText.replace('복사', '').trim();
+            navigator.clipboard.writeText(text).then(() => {
+                const orig = btn.innerText;
+                btn.innerText = "완료!";
+                setTimeout(() => btn.innerText = orig, 1500);
+            });
+        }
+
+        async function sendChat() {
+            const inp = document.getElementById('chat-input');
+            const btn = document.getElementById('chat-send');
+            const txt = inp.value.trim();
+            if(!txt) return;
+
+            appendUserMsg(txt);
+            inp.value = '';
+            
+            // 전송 중 상태 처리 (과부하 방지)
+            inp.disabled = true;
+            btn.disabled = true;
+            appendBotMsg("맵봇이 생각하는 중입니다... 🤔", true);
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: txt })
+                });
+
+                document.getElementById('loading-msg').remove(); // 로딩 메시지 삭제
+
+                const data = await response.json();
+                if(data.candidates && data.candidates.length > 0) {
+                    appendBotMsg(data.candidates[0].content.parts[0].text);
+                } else {
+                    appendBotMsg("앗, 응답을 받아오는데 문제가 생겼어. 다시 한번 말해줄래?");
+                }
+            } catch (err) {
+                if(document.getElementById('loading-msg')) document.getElementById('loading-msg').remove();
+                appendBotMsg("서버와 통신할 수 없어. 선생님께 말씀드려줘!");
+            } finally {
+                inp.disabled = false;
+                btn.disabled = false;
+                inp.focus();
+            }
+        }
+
+        // --- 공책 및 레이아웃 로직 ---
+        let isLayoutSelected = false;
+
+        function openLayoutModal() {
+            document.getElementById('layout-modal').classList.remove('hidden');
+        }
+
+        function openNotebook() {
+            if(!isLayoutSelected) {
+                openLayoutModal();
+            } else {
+                document.getElementById('lobby-screen').classList.add('hidden');
+                document.getElementById('notebook-screen').classList.remove('hidden');
+                initCanvas();
+            }
+        }
+
+        function selectLayout(type) {
+            document.getElementById('layout-modal').classList.add('hidden');
+            document.getElementById('lobby-screen').classList.add('hidden');
+            document.getElementById('notebook-screen').classList.remove('hidden');
+            isLayoutSelected = true;
+
+            document.getElementById('nb-user-info').innerText = `${userInfo.school}초 ${userInfo.grade}학년 ${userInfo.cls}반 ${userInfo.num}번 ${userInfo.name}`;
+
+            const wrapper = document.getElementById('layout-wrapper');
+            wrapper.className = `layout-container layout-${type}`;
+
+            if(type === 1) {
+                wrapper.innerHTML = `
+                    <div class="top-area">이곳에 지도를 그리거나 스티커를 붙여보세요! (펜을 선택하세요)</div>
+                    <div class="bottom-area"><textarea class="text-box chat-import-target" placeholder="여기에 배운 내용을 줄글로 정리해 보세요."></textarea></div>
+                `;
+            } else if(type === 2) {
+                wrapper.innerHTML = `
+                    <div class="left-area"><textarea class="text-box chat-import-target" placeholder="챗봇과 대화한 내용이나 핵심 설명을 여기에 적어보세요."></textarea></div>
+                    <div class="right-area" style="display:flex; justify-content:center; align-items:center; color:#95A5A6;">이곳에 지형이나 기호를 그려보세요.</div>
+                `;
+            } else if(type === 3) {
+                wrapper.innerHTML = `
+                    <div class="left-cue"><textarea class="text-box" placeholder="핵심 단어 / 질문"></textarea></div>
+                    <div class="right-note"><textarea class="text-box chat-import-target" placeholder="상세 필기 및 그리기 영역"></textarea></div>
+                    <div class="bottom-summary"><textarea class="text-box" placeholder="오늘 배운 내용 세 줄 요약!"></textarea></div>
+                `;
+            }
+
+            setTimeout(initCanvas, 100);
+            setNotebookMode('text');
+        }
+
+        function importChatHistory() {
+            if(chatHistory.length <= 1) {
+                alert("아직 맵봇과 나눈 대화가 없습니다.");
+                return;
+            }
+            
+            const targetBox = document.querySelector('.chat-import-target');
+            if(targetBox) {
+                // 첫 번째 인사말 제외하고 대화 내용 포맷팅
+                const historyText = chatHistory.slice(1).map(c => {
+                    const speaker = c.role === 'user' ? '나' : '🤖 맵봇';
+                    return `[${speaker}]\n${c.text}`;
+                }).join('\n\n');
+                
+                targetBox.value += (targetBox.value ? '\n\n---\n\n' : '') + historyText;
+                alert("대화 내용이 노트에 불러와졌습니다!");
+            }
+        }
+
+        // --- 캔버스 그리기 로직 (기존과 동일) ---
+        const cvs = document.getElementById('draw-layer');
+        const ctx = cvs.getContext('2d');
+        let isDrawing = false;
+        let lastX = 0, lastY = 0;
+
+        function initCanvas() {
+            const container = document.getElementById('notebook-canvas-container');
+            cvs.width = container.clientWidth;
+            cvs.height = container.clientHeight;
+        }
+
+        window.addEventListener('resize', () => { if(isLayoutSelected && !document.getElementById('notebook-screen').classList.contains('hidden')) initCanvas(); });
+
+        function setNotebookMode(mode) {
+            curNbMode = mode;
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tool-' + mode).classList.add('active');
+
+            if(mode === 'text') {
+                cvs.classList.remove('active');
+            } else {
+                cvs.classList.add('active');
+                if(mode === 'draw') {
+                    ctx.globalCompositeOperation = 'source-over';
+                } else if(mode === 'erase') {
+                    ctx.globalCompositeOperation = 'destination-out';
+                }
+            }
+        }
+
+        function clearCanvas() {
+            if(confirm("그린 그림을 모두 지울까요? (글씨와 스티커는 남습니다)")) {
+                ctx.clearRect(0, 0, cvs.width, cvs.height);
+            }
+        }
+
+        function getMousePos(e) {
+            const rect = cvs.getBoundingClientRect();
+            return {
+                x: (e.clientX || e.touches[0].clientX) - rect.left,
+                y: (e.clientY || e.touches[0].clientY) - rect.top
+            };
+        }
+
+        const startDraw = (e) => {
+            if(curNbMode === 'text') return;
+            isDrawing = true;
+            const pos = getMousePos(e);
+            lastX = pos.x; lastY = pos.y;
+        };
+
+        const draw = (e) => {
+            if(!isDrawing) return;
+            e.preventDefault();
+            const pos = getMousePos(e);
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(pos.x, pos.y);
+            
+            ctx.lineWidth = document.getElementById('draw-size').value;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = document.getElementById('draw-color').value;
+            
+            ctx.stroke();
+            lastX = pos.x; lastY = pos.y;
+        };
+
+        const stopDraw = () => { isDrawing = false; };
+
+        cvs.addEventListener('mousedown', startDraw);
+        window.addEventListener('mousemove', draw);
+        window.addEventListener('mouseup', stopDraw);
+        
+        cvs.addEventListener('touchstart', startDraw, {passive: false});
+        cvs.addEventListener('touchmove', draw, {passive: false});
+        window.addEventListener('touchend', stopDraw);
+
+        // --- 이미지 저장 로직 (기존과 동일) ---
+        function saveNotebook() {
+            document.querySelectorAll('.text-box').forEach(tb => {
+                tb.style.border = 'none';
+                tb.style.background = 'transparent';
+            });
+            cvs.classList.remove('active'); 
+
+            const element = document.getElementById('notebook-workspace');
+            html2canvas(element, { backgroundColor: '#FAFAFA' }).then(canvas => {
+                const url = canvas.toDataURL("image/jpeg", 0.95);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${userInfo.name}의_질문노트.jpg`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                alert("🎉 질문 노트가 예쁘게 저장되었습니다! 패들렛이나 띵커벨에 공유해보세요.");
+                
+                document.querySelectorAll('.text-box').forEach(tb => {
+                    tb.style.border = '2px dashed #E5E7E9';
+                });
+                setNotebookMode(curNbMode);
+            });
+        }
+    </script>
+</body>
+</html>
